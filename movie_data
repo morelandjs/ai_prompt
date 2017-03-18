@@ -2,7 +2,6 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-import re
 import string
 
 import ast
@@ -13,9 +12,12 @@ from stop_words import get_stop_words
 
 def prune(text):
     translator = str.maketrans('', '', string.punctuation)
+
     words = text.translate(translator).lower().split()
+
     stop_words = get_stop_words('english')
     pruned_words = [w for w in words if w not in stop_words]
+
     return pruned_words
     
 
@@ -35,16 +37,18 @@ with open('movie_data.csv', 'r') as f:
 
     popular_genres = [name for name, counts in counts.most_common(5)]
 
-    popular_words = ''.join([
-            prune(row['summary']) for row in reader
+    popular_text = ''.join(
+            [row['summary'] for row in reader
             if bool(
                 set(ast.literal_eval(row['genres'])) &
                 set(popular_genres)
                 )
             ])
 
+
     """
     Twenty most common words for five most popular genres
 
     """
+    popular_words = prune(popular_text)
     print(Counter(popular_words).most_common(20))
