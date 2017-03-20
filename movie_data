@@ -53,7 +53,6 @@ def main():
     print('Popular genres (name, counts):\n{}\n'.format(
         genre_counts.most_common(5)))
 
-
     """
     Loop through top five most popular genres
     and list common words.
@@ -70,7 +69,6 @@ def main():
         genre_words = Counter(word_list(genre_text))
         print('{} words (name, counts):\n{}\n'.format(
             genre, genre_words.most_common(20)))
-
 
     """
     Testing Zipf's law: word frequency is inversely
@@ -97,7 +95,6 @@ def main():
         sorted(summary_words.values(), reverse=True), start=1
         ))
 
-
     """
     First scatter plot word rank and frequency data for
     Zipf's law. Then fit the data on a log-log scale to a line
@@ -112,13 +109,13 @@ def main():
 
     # plot movie data summary words, rank and frequency
     plt.scatter(log_rank, log_freq, label='Movie summary words')
-    
+
     # rebin to account for nonuniform density in log space
     # fit domain is log(rank) in [2, 8]
     bins = np.linspace(2, 8, 20)
     x = 0.5*(bins[:-1] + bins[1:])
     y = [log_freq[(log_rank > lo) & (log_rank < hi)].mean()
-            for lo, hi in zip(bins[:-1], bins[1:])]
+         for lo, hi in zip(bins[:-1], bins[1:])]
 
     # fit log(rank) and log(freq) with a line
     coeff = np.polyfit(x, y, 1)
@@ -127,7 +124,7 @@ def main():
 
     # plot linear fit
     plt.plot(domain, linear_fit(domain), color='k',
-            label=r'linear fit, log(rank) $\in [2, 8]$')
+             label=r'linear fit, log(rank) $\in [2, 8]$')
 
     plt.title("Zipf's Law")
     plt.xlabel(r'log(rank)')
