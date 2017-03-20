@@ -1,30 +1,40 @@
 #!/usr/bin/env python3
 
+import ast
+from collections import Counter
+import csv
+import re
+
 import matplotlib.pyplot as plt
 import numpy as np
-import string
-
-import ast
-import csv
-from collections import Counter
 from stop_words import get_stop_words
 
 
-def prune(text):
-    translator = str.maketrans('', '', string.punctuation)
+def word_list(text, prune=True):
+    """
+    Takes a string and returns a list of words.
+    Only characters a-z are kept as well as apostrophes.
+    All words are returned lower case.
 
-    words = text.translate(translator).lower().split()
+    Prune option removes stop words, e.g. 'a', 'and', etc
 
-    stop_words = get_stop_words('english')
-    pruned_words = [w for w in words if w not in stop_words]
+    """
+    word_list = re.sub("[^\w \']", " ", text.lower()).split()
 
-    return pruned_words
-    
+    if prune:
+        stop_words = get_stop_words('english')
+        word_list = [w for w in word_list if w not in stop_words]
 
-with open('movie_data.csv', 'r') as f:
-    reader = list(csv.DictReader(f))
+    return word_list
 
-    genres = np.concatenate(
+
+def main():
+    # load the csv file containing movie data
+    with open('movie_data.csv', 'r') as f:
+        reader = list(csv.DictReader(f))
+
+    # collect genre data for each movie into a single list
+    genre_text = np.concatenate(
             [ast.literal_eval(row['genres']) for row in reader]
             )
 
@@ -32,23 +42,88 @@ with open('movie_data.csv', 'r') as f:
     Five most common genres
 
     """
-    counts = Counter(genres)
-    print(counts.most_common(5))
+    genre_counts = Counter(genre_text)
+    print('Popular genres (name, counts):\n{}\n'.format(
+        genre_counts.most_common(5)))
 
-    popular_genres = [name for name, counts in counts.most_common(5)]
 
-    popular_text = ''.join(
-            [row['summary'] for row in reader
-            if bool(
-                set(ast.literal_eval(row['genres'])) &
-                set(popular_genres)
-                )
+    """
+    Loop through top five most popular genres
+    and list common words.
+
+    """
+    for genre, _ in genre_counts.most_common(5):
+        # join matching summaries into single string
+        genre_text = ''.join([
+            row['summary'] for row in reader
+            if genre in ast.literal_eval(row['genres'])
             ])
 
+        # count most common words in joined summary string
+        genre_words = Counter(word_list(genre_text))
+        print('{} words (name, counts):\n{}\n'.format(
+            genre, genre_words.most_common(20)))
+
 
     """
-    Twenty most common words for five most popular genres
+    Testing Zipf's law: word frequency is inversely
+    proportional to its rank in the frequency table.
+    http://en.wikipedia.org/wiki/Zipf's_law
+
+    Pruning is turned 'off' as stop words are included
+    in Zipf's law.
 
     """
-    popular_words = prune(popular_text)
-    print(Counter(popular_words).most_common(20))
+    summary_text = ''.join([
+        row['summary'] for row in reader
+        ])
+
+    # count most common summary words in all summary text
+    summary_words = Counter(word_list(summary_text, prune=False))
+
+    # generate list of tuples for word rank and frequency (counts)
+    word_freq = list(enumerate(
+        sorted(summary_words.values(), reverse=True), start=1
+        ))
+
+
+    """
+    First scatter plot word rank and frequency data for
+    Zipf's law. Then fit the data on a log-log scale to a line
+    and compare fit quality.
+
+    """
+    nw = 10**5
+    rank, freq = zip(*word_freq[:nw])
+
+    log_rank = np.log(rank)
+    log_freq = np.log(freq)
+
+    # plot movie data summary words, rank and frequency
+    plt.scatter(log_rank, log_freq, label='Movie summary words')
+    
+    # rebin to account for nonuniform density in log space
+    bins = np.linspace(2, 8, 20)
+    x = 0.5*(bins[:-1] + bins[1:])
+    y = [log_freq[(log_rank > lo) & (log_rank < hi)].mean()
+            for lo, hi in zip(bins[:-1], bins[1:])]
+
+    # fit log(rank) and log(freq) with a line
+    coeff = np.polyfit(x, y, 1)
+    linear_fit = np.poly1d(coeff)
+    domain = np.linspace(0, 12)
+
+    # plot linear fit
+    plt.plot(domain, linear_fit(domain), color='k',
+            label=r'linear fit, log(counts) $\in [2, 8]$')
+
+    plt.title("Zipf's Law")
+    plt.xlabel(r'log(rank)')
+    plt.ylabel(r'log(counts)')
+    plt.legend()
+
+    plt.savefig('zipfs_law.pdf')
+
+
+if __name__ == "__main__":
+    main()
