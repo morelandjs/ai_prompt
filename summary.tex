@@ -1,0 +1,108 @@
+\documentclass[aps,prc,reprint,amsmath]{revtex4-1}
+
+\usepackage{hyperref}
+\usepackage{graphicx}
+\graphicspath{{fig/}}
+
+\newcommand{\txt}[1]{\texttt{#1}}
+
+\begin{document}
+
+\title{Word frequency in movie summaries}
+
+\author{J.\ Scott Moreland}
+\date{\today}
+
+\maketitle
+
+\section{Motivation}
+This write-up summarizes the results of a quick data science exercise to analyze properties of generic movie data.
+The file is provided with minimal information regarding its contents; we know only that it ``contains summaries of roughly 42,000 movies scraped from Wikipedia, along with metadata about each movie.'' 
+
+The goal of the exercise is to answer three simple questions:
+\begin{enumerate}
+  \item What are the 5 most popular genres?
+  \item What words are characteristic of the movie summaries in those genres?
+  \item A empirical observation known as Zipf's law is often used to describe the distribution of word frequencies in text corpora. Do you see evidence of Zipf's law in the summaries?
+\end{enumerate}
+
+\section{Parsing the data}
+
+The file is provided in comma-separated value (CSV) format. Upon inspection, one sees that the first row of the file is a set of keys, while successive entries are corresponding values for each movie.
+
+The data is well suited for the python csv dictionary interface. I use the python csv reader to parse successive movie entries and access them using the provided dictionary interface. 
+
+It's worth noting that the data file in this example is rather small (76 MB) and can easily be stored in memory. I thus choose to read the whole data set into memory once and read through it several times to answer each question. For larger data sets where speed and memory usage are an issue, one should consider using a database.
+
+\section{Popular genres}
+
+Determining the five most popular genres is relatively straight forward. Each movie contains a list of associated genres so we merely need to concatenate those genres into a single list and count the frequency of each element.
+
+There are, of course, several caveats. I notice, for instance, that genres often include compound structure. For example, there are both \txt{Romantic comedies} and \txt{Romance} movies. Clearly both of these descriptors have elements of romance and it would be reasonable to assign both titles at least one shared descriptor. For this reason, I split the genres into a list of words in order to capture elements of their compound nature separately.
+
+Additionally, word morphology will cause \txt{Romantic} and \txt{Romance} genres to identify as unique set elements. Certainly the most general way to handle such morphologies would be to import a word stemming library which could identify the stem \txt{Roman}. However, given that this is a programming and data science exercise, it seems sufficient to acknowledge this issue in lieu of adopting a bloated software dependency. As an ad hoc fix, I explicitly remap romantic to resolve the observed degeneracy in the most popular genres. 
+
+\subsection*{Answer:}
+Applying the aforementioned procedure, I find that the most popular genres are: drama, comedy, romance, action and thriller films.
+
+\section{Common summary words}
+
+The next task is to determine the words which are characteristic of the movie summaries in the five most popular genres.
+The question leaves some room for interpretation. For example, what is meant by characteristic?
+I'll assume that by characteristic we mean words which are both frequent and nongeneric.
+For instance, we clearly ought to remove stop words such as: a, the, and, etc.
+Beyond this criteria, it's not clear from the question's context alone if we are interested in word uniqueness across different movie genres which could refine our definition of ``characteristic''. For simplicity, I only remove stop words and several frequently observed filler words. A more thorough characterization could go further and normalize word frequency in each genre by word frequency across all genres. One could also stem the words to remove suffixes and other morphologies as discussed previously. 
+
+\subsection*{Answer}
+Nevertheless, my simple approach works reasonably well at removing filler words. The twelve most common words in each movie genre are: 
+\begin{itemize}
+  \item \textsc{Drama}: one, father, life, back, two, love, tells, family, man, home, time, new 
+  \item \textsc{Comedy}: one, back, two, new, time, love, tells, father, however, home, house, man
+  \item \textsc{Romance}: love, one, father, back, tells, two, life, time, new, home, man, day
+  \item \textsc{Action}: one, back, two, police, man, men, killed, find, kill, tells, however, time 
+  \item \textsc{Thriller}: one, police, back, two, man, tells, find, house, killed, finds, later, kill 
+\end{itemize}
+
+It's clear that while the present system is imperfect---there remains word morphology repetition and several nondescript words occur frequently---it still captures expected trends. For example we see high occurrences of ``family'' in drama, ``love'' in romance, ``police'' in action and ``kill/killed" in thriller films. The present system would certainly be improved by word stemming and some kind of filtering algorithm to remove words which are ubiquitous to all summaries and specific to none. 
+
+\section{Zipf's law}
+
+As a last exercise, I test the summary text word frequency for evidence of Zipf's law.\\[2ex]
+{\noindent \textsc{Definition}\\ 
+\emph{Given some corpus of natural language utterances, Zipf's law predicts that the frequency of any word is inversely proportional to its rank in the frequency table.}}\\[1ex]
+
+The easiest way to test Zipf's law (as suggested on Wikipedia) is to construct a sorted list of word frequencies and plot each word's rank and corresponding frequency on a log-log scale. The data then conform to Zipf's law to the extent that the data is linear. 
+
+\begin{figure}
+  \includegraphics{zipfs_law}
+  \caption{
+    \label{fig:zipf}
+    Testing Zipf's law on word frequencies in movie summaries.
+  }
+\end{figure}
+
+To see why this is the case, consider a monomial equation $y = a x^k$. Taking the log of both sides yields
+\begin{equation}
+  \log y = k \log x + \log a,
+\end{equation}
+which is simply a linear equation in $\log x$ and $\log y$. Hence to test that the data is described by a Zipfian distribution with frequency $f$ and rank $k$, i.e.,
+\begin{equation*}
+  f \propto k^{-s}, 
+\end{equation*}
+one simply needs to check that $f$ and $k$ are linearly related on a log-log scale.
+
+\subsection*{Answer}
+
+To test this, I generate a list of \emph{all} summary words (including stop words) and sort the words by their observed frequency. I then take the logarithms of the word frequencies and ranks and scatter plot the two quantities. The data is then fit with a line, restricted to the domain $\mathrm{log(rank)} \in [2, 8]$ where the linear trend is strongest.
+
+The resulting plot, shown in Fig.~\ref{fig:zipf}, illustrates that Zipf's law provides a reasonable description of the data for moderate values of word rank,
+\begin{equation*}
+  2 \lesssim \mathrm{log(rank)} \lesssim 10. 
+\end{equation*}
+The fit quality is also corroborated by figures on the Zipf's law Wikipedia page which demonstrate similar levels of agreement. Of course, the fit quality could be quantified using a specific goodness-of-fit measure if desired. 
+
+
+
+
+
+\end{document}
