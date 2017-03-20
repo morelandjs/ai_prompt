@@ -30,8 +30,15 @@ def word_list(text, prune=True):
 
 def main():
     # load the csv file containing movie data
-    with open('movie_data.csv', 'r') as f:
-        reader = list(csv.DictReader(f))
+    try:
+        with open('movie_data.csv', 'r') as f:
+            reader = list(csv.DictReader(f))
+    except FileNotFoundError:
+        print("Expects 'movie_data.csv' in working directory, see README")
+        return
+
+    # notify user of runtime delay
+    print("Parsing data, this could take a min...\n")
 
     # collect genre data for each movie into a single list
     genre_text = np.concatenate(
@@ -74,6 +81,10 @@ def main():
     in Zipf's law.
 
     """
+
+    # print status output
+    print("Plotting Zipf's law.")
+
     summary_text = ''.join([
         row['summary'] for row in reader
         ])
@@ -103,6 +114,7 @@ def main():
     plt.scatter(log_rank, log_freq, label='Movie summary words')
     
     # rebin to account for nonuniform density in log space
+    # fit domain is log(rank) in [2, 8]
     bins = np.linspace(2, 8, 20)
     x = 0.5*(bins[:-1] + bins[1:])
     y = [log_freq[(log_rank > lo) & (log_rank < hi)].mean()
@@ -115,7 +127,7 @@ def main():
 
     # plot linear fit
     plt.plot(domain, linear_fit(domain), color='k',
-            label=r'linear fit, log(counts) $\in [2, 8]$')
+            label=r'linear fit, log(rank) $\in [2, 8]$')
 
     plt.title("Zipf's Law")
     plt.xlabel(r'log(rank)')
